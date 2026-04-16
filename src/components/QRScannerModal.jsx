@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { X, Loader2, Camera, AlertCircle } from "lucide-react";
-import { Html5QrcodeScanner } from "html5-qrcode";
+import { Html5Qrcode } from "html5-qrcode";
 import { qrLogin } from "../services/api";
 import { useNavigate } from "react-router-dom";
 
@@ -26,27 +26,29 @@ const QRScannerModal = ({ isOpen, onClose }) => {
       setScanning(true);
       setError("");
 
-      const scanner = new Html5QrcodeScanner(
-        "qr-scanner",
+      const html5QrCode = new Html5Qrcode("qr-scanner");
+      scannerRef.current = html5QrCode;
+
+      await html5QrCode.start(
+        { facingMode: "environment" }, // back camera
         {
           fps: 10,
-          qrbox: { width: 250, height: 250 },
+          qrbox: 250,
         },
-        false,
+        onScanSuccess,
+        () => {}, // ignore scan errors
       );
-
-      scanner.render(onScanSuccess, onScanFailure); // ✅ FIXED
-
-      scannerRef.current = scanner;
     } catch (err) {
-      setError("Failed to start camera. Please allow permission or use HTTPS.");
+      console.error(err);
+      setError("Camera failed. Allow permission and open in Chrome.");
     }
   };
 
   const stopScanner = async () => {
     if (scannerRef.current) {
       try {
-        await scannerRef.current.clear(); // ✅ safe cleanup
+        await scannerRef.current.stop();
+        await scannerRef.current.clear();
       } catch (e) {}
       scannerRef.current = null;
     }
@@ -104,10 +106,6 @@ const QRScannerModal = ({ isOpen, onClose }) => {
       setError(err.message || "Scan failed");
       setLoading(false);
     }
-  };
-
-  const onScanFailure = () => {
-    // ignore scan errors silently
   };
 
   const handleClose = () => {
