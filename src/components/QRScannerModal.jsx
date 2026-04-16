@@ -26,21 +26,38 @@ const QRScannerModal = ({ isOpen, onClose }) => {
       setScanning(true);
       setError("");
 
+      // 🔥 STEP 1: Check camera devices
+      const devices = await Html5Qrcode.getCameras();
+
+      if (!devices || devices.length === 0) {
+        throw new Error("No camera found on this device");
+      }
+
+      const cameraId = devices[0].id;
+
       const html5QrCode = new Html5Qrcode("qr-scanner");
       scannerRef.current = html5QrCode;
 
+      // 🔥 STEP 2: Start with device ID (more compatible)
       await html5QrCode.start(
-   { facingMode: { ideal: "environment" } }, // back camera
+        cameraId,
         {
           fps: 10,
           qrbox: 250,
         },
         onScanSuccess,
-        () => {}, // ignore scan errors
       );
     } catch (err) {
-      console.error(err);
-      setError("Camera failed. Allow permission and open in Chrome.");
+      console.error("Camera Error:", err);
+
+      // 🔥 BETTER ERROR HANDLING
+      if (err.message.includes("NotAllowedError")) {
+        setError("Camera permission denied. Please allow it.");
+      } else if (err.message.includes("NotFoundError")) {
+        setError("No camera found on this device.");
+      } else {
+        setError("Camera not supported. Use Chrome or try another device.");
+      }
     }
   };
 
