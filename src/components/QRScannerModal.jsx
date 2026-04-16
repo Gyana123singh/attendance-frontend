@@ -30,7 +30,7 @@ const QRScannerModal = ({ isOpen, onClose }) => {
       scannerRef.current = html5QrCode;
 
       await html5QrCode.start(
-        { facingMode: "environment" }, // back camera
+   { facingMode: { ideal: "environment" } }, // back camera
         {
           fps: 10,
           qrbox: 250,

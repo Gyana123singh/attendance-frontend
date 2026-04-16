@@ -1,25 +1,20 @@
-import { useState } from 'react';
-import QRLoginButton from '../components/QRLoginButton';
-import QRScannerModal from '../components/QRScannerModal';
-import { Info } from 'lucide-react';
+import { useState, useEffect } from "react";
+import QRLoginButton from "../components/QRLoginButton";
+import QRScannerModal from "../components/QRScannerModal";
+import { Info } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
-  // Simple token check - redirect if logged in
-  const token = localStorage.getItem('token');
-  if (token) {
-    window.location.href = '/dashboard';
-    return null;
-  }
-
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const navigate = useNavigate();
 
-  const handleOpenScanner = () => {
-    setIsScannerOpen(true);
-  };
-
-  const handleCloseScanner = () => {
-    setIsScannerOpen(false);
-  };
+  // ✅ FIX: proper redirect
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      navigate("/dashboard");
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -32,9 +27,9 @@ const Login = () => {
           <p className="text-gray-600">Sign in to your attendance account</p>
         </div>
 
-        {/* Traditional login form (placeholder) */}
+        {/* Email login (placeholder) */}
         <div className="space-y-4 mb-8">
-          <button className="w-full py-3 px-6 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl">
+          <button className="w-full py-3 px-6 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-medium">
             Email & Password
           </button>
         </div>
@@ -51,24 +46,31 @@ const Login = () => {
           </div>
         </div>
 
-        {/* QR Login Button */}
-        <QRLoginButton onOpenScanner={handleOpenScanner} />
+        {/* QR Button */}
+        <QRLoginButton onOpenScanner={() => setIsScannerOpen(true)} />
 
-        {/* SSO Info Box */}
-        <div className="mt-8 p-4 bg-blue-50 border border-blue-100 rounded-2xl">
+        {/* ⚠️ IMPORTANT USER MESSAGE */}
+        <div className="mt-6 text-xs text-center text-red-500">
+          Open this page in Chrome browser and allow camera access
+        </div>
+
+        {/* Info Box */}
+        <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-2xl">
           <div className="flex items-start gap-3">
-            <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-gray-700 leading-relaxed">
-              SSO integration available — contact your admin to enable Google or Microsoft sign-in.
+            <Info className="w-5 h-5 text-blue-500 mt-0.5" />
+            <p className="text-sm text-gray-700">
+              SSO integration available — contact your admin.
             </p>
           </div>
         </div>
 
-        <QRScannerModal isOpen={isScannerOpen} onClose={handleCloseScanner} />
+        <QRScannerModal
+          isOpen={isScannerOpen}
+          onClose={() => setIsScannerOpen(false)}
+        />
       </div>
     </div>
   );
 };
 
 export default Login;
-
