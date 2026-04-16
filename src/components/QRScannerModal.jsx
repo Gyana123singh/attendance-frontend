@@ -10,9 +10,11 @@ const QRScannerModal = ({ isOpen, onClose }) => {
   const [error, setError] = useState("");
   const scannerRef = useRef(null);
   const navigate = useNavigate();
+  const [cameras, setCameras] = useState([]);
+  const [selectedCamera, setSelectedCamera] = useState(null);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !scannerRef.current) {
       startScanner();
     }
 
@@ -21,24 +23,30 @@ const QRScannerModal = ({ isOpen, onClose }) => {
     };
   }, [isOpen]);
 
-  const startScanner = async () => {
+  const startScanner = async (cameraIdParam) => {
     try {
       setScanning(true);
       setError("");
 
-      // 🔥 STEP 1: Check camera devices
       const devices = await Html5Qrcode.getCameras();
 
       if (!devices || devices.length === 0) {
-        throw new Error("No camera found on this device");
+        throw new Error("No camera found");
       }
 
-      const cameraId = devices[0].id;
+      setCameras(devices);
+
+      // ✅ Prefer rear camera
+      const backCamera = devices.find((d) =>
+        d.label.toLowerCase().includes("back"),
+      );
+
+      const cameraId = cameraIdParam || backCamera?.id || devices[0].id;
+      setSelectedCamera(cameraId);
 
       const html5QrCode = new Html5Qrcode("qr-scanner");
       scannerRef.current = html5QrCode;
 
-      // 🔥 STEP 2: Start with device ID (more compatible)
       await html5QrCode.start(
         cameraId,
         {
@@ -49,15 +57,7 @@ const QRScannerModal = ({ isOpen, onClose }) => {
       );
     } catch (err) {
       console.error("Camera Error:", err);
-
-      // 🔥 BETTER ERROR HANDLING
-      if (err.message.includes("NotAllowedError")) {
-        setError("Camera permission denied. Please allow it.");
-      } else if (err.message.includes("NotFoundError")) {
-        setError("No camera found on this device.");
-      } else {
-        setError("Camera not supported. Use Chrome or try another device.");
-      }
+      setError("Camera not working on this device.");
     }
   };
 
@@ -79,7 +79,6 @@ const QRScannerModal = ({ isOpen, onClose }) => {
       setLoading(true);
       setError("");
 
-      // ✅ FIX: handle both JSON and plain QR
       let qrCodeId;
       try {
         const data = JSON.parse(decodedText);
@@ -88,7 +87,7 @@ const QRScannerModal = ({ isOpen, onClose }) => {
         qrCodeId = decodedText;
       }
 
-      // 📍 Get location
+      // 📍 Location
       let location = {};
       try {
         const position = await new Promise((resolve, reject) => {
@@ -99,30 +98,26 @@ const QRScannerModal = ({ isOpen, onClose }) => {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
-      } catch {
-        console.log("Location denied, continuing without it");
-      }
+      } catch {}
 
-      // 🔥 API CALL
       const { token } = await qrLogin(qrCodeId, location);
 
-      if (!token) {
-        throw new Error("Invalid response from server");
-      }
+      if (!token) throw new Error("Invalid response");
 
-      // ✅ Save token
       localStorage.setItem("token", token);
 
-      // stop scanner
       await stopScanner();
-
-      // redirect
       navigate("/dashboard");
     } catch (err) {
       console.error(err);
       setError(err.message || "Scan failed");
       setLoading(false);
     }
+  };
+
+  const handleCameraChange = async (cameraId) => {
+    await stopScanner();
+    startScanner(cameraId);
   };
 
   const handleClose = () => {
@@ -134,57 +129,59 @@ const QRScannerModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white/90 backdrop-blur-xl rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+      <div className="bg-white/90 rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+        <div className="p-6 border-b flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Camera className="w-6 h-6 text-blue-600" />
-            <h2 className="text-xl font-bold text-gray-900">Scan QR Code</h2>
+            <h2 className="text-xl font-bold">Scan QR Code</h2>
           </div>
-          <button
-            onClick={handleClose}
-            className="p-2 hover:bg-gray-100 rounded-lg"
-          >
-            <X className="w-5 h-5" />
+          <button onClick={handleClose}>
+            <X />
           </button>
         </div>
 
-        {/* Scanner */}
+        {/* Scanner Area */}
         <div className="flex-1 flex flex-col items-center justify-center p-6">
-          {scanning ? (
-            <>
-              <div id="qr-scanner" className="w-full max-w-xs"></div>
+          {/* ✅ Camera Selector */}
+          {cameras.length > 1 && (
+            <select
+              value={selectedCamera || ""}
+              onChange={(e) => handleCameraChange(e.target.value)}
+              className="mb-4 p-2 border rounded-lg w-full max-w-xs"
+            >
+              {cameras.map((cam, index) => (
+                <option key={cam.id} value={cam.id}>
+                  {cam.label?.toLowerCase().includes("back")
+                    ? "Rear Camera"
+                    : cam.label?.toLowerCase().includes("front")
+                      ? "Front Camera"
+                      : `Camera ${index + 1}`}
+                </option>
+              ))}
+            </select>
+          )}
 
-              {loading && (
-                <div className="mt-4 flex items-center gap-2 text-blue-600">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>Processing login...</span>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center">
-              <Camera className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-              <p className="text-gray-600">Starting camera...</p>
+          {/* ✅ IMPORTANT: Scanner container */}
+          <div id="qr-scanner" className="w-full max-w-xs"></div>
+
+          {/* Loading */}
+          {loading && (
+            <div className="mt-4 flex items-center gap-2 text-blue-600">
+              <Loader2 className="animate-spin" />
+              <span>Processing...</span>
             </div>
           )}
         </div>
 
         {/* Error */}
         {error && (
-          <div className="p-4 border-t border-red-100 bg-red-50">
-            <div className="flex items-start gap-2 text-red-800 text-sm">
-              <AlertCircle className="w-4 h-4 mt-0.5" />
-              <span>{error}</span>
-            </div>
-          </div>
+          <div className="p-4 bg-red-50 text-red-600 text-sm">{error}</div>
         )}
 
         {/* Footer */}
-        <div className="p-4 border-t border-gray-200 bg-gray-50">
-          <p className="text-xs text-gray-500 text-center">
-            Allow camera access and point at QR code
-          </p>
+        <div className="p-4 bg-gray-50 text-center text-xs text-gray-500">
+          Allow camera access and scan QR code
         </div>
       </div>
     </div>
