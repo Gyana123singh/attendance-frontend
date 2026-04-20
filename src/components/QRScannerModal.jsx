@@ -12,6 +12,9 @@ const QRScannerModal = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const [cameras, setCameras] = useState([]);
   const [selectedCamera, setSelectedCamera] = useState(null);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [logs, setLogs] = useState([]);
+  const [lastDecoded, setLastDecoded] = useState(null);
 
   useEffect(() => {
     if (isOpen && !scannerRef.current) {
@@ -47,20 +50,45 @@ const QRScannerModal = ({ isOpen, onClose }) => {
       const html5QrCode = new Html5Qrcode("qr-scanner");
       scannerRef.current = html5QrCode;
 
-      // Use deviceId constraint to ensure correct camera is selected
-      // and add a failure callback to log decode errors for diagnostics.
-      await html5QrCode.start(
-        { deviceId: { exact: cameraId } },
-        {
-          fps: 10,
-          qrbox: 250,
-        },
-        onScanSuccess,
-        (errorMessage) => {
-          // Non-fatal per-frame decode failures are common; log for debugging
-          console.debug("QR decode error:", errorMessage);
-        },
-      );
+      // Try deviceId constraint first; if it fails, fall back to camera id string
+      try {
+        await html5QrCode.start(
+          { deviceId: { exact: cameraId } },
+          {
+            fps: 15,
+            qrbox: 250,
+          },
+          (decoded) => {
+            setLogs((l) => [...l.slice(-50), `DECODE: ${decoded}`]);
+            setLastDecoded(decoded);
+            onScanSuccess(decoded);
+          },
+          (errorMessage) => {
+            setLogs((l) => [...l.slice(-50), `DECODE_ERR: ${errorMessage}`]);
+            console.debug("QR decode error:", errorMessage);
+          },
+        );
+      } catch (startErr) {
+        console.warn("start with deviceId failed, falling back to camera id", startErr);
+        setLogs((l) => [...l.slice(-50), `START_ERR: ${startErr?.message || startErr}`]);
+        // fallback: try with camera id string
+        await html5QrCode.start(
+          cameraId,
+          {
+            fps: 15,
+            qrbox: 250,
+          },
+          (decoded) => {
+            setLogs((l) => [...l.slice(-50), `DECODE: ${decoded}`]);
+            setLastDecoded(decoded);
+            onScanSuccess(decoded);
+          },
+          (errorMessage) => {
+            setLogs((l) => [...l.slice(-50), `DECODE_ERR: ${errorMessage}`]);
+            console.debug("QR decode error:", errorMessage);
+          },
+        );
+      }
     } catch (err) {
       console.error("Camera Error:", err);
       setError("Camera not working on this device.");
@@ -137,15 +165,24 @@ const QRScannerModal = ({ isOpen, onClose }) => {
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white/90 rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="p-6 border-b flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Camera className="w-6 h-6 text-blue-600" />
-            <h2 className="text-xl font-bold">Scan QR Code</h2>
+          <div className="p-6 border-b flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Camera className="w-6 h-6 text-blue-600" />
+              <h2 className="text-xl font-bold">Scan QR Code</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setDebugOpen((s) => !s)}
+                className="text-sm px-2 py-1 border rounded"
+                title="Toggle debug"
+              >
+                Debug
+              </button>
+              <button onClick={handleClose}>
+                <X />
+              </button>
+            </div>
           </div>
-          <button onClick={handleClose}>
-            <X />
-          </button>
-        </div>
 
         {/* Scanner Area */}
         <div className="flex-1 flex flex-col items-center justify-center p-6">
