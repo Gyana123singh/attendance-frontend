@@ -47,13 +47,19 @@ const QRScannerModal = ({ isOpen, onClose }) => {
       const html5QrCode = new Html5Qrcode("qr-scanner");
       scannerRef.current = html5QrCode;
 
+      // Use deviceId constraint to ensure correct camera is selected
+      // and add a failure callback to log decode errors for diagnostics.
       await html5QrCode.start(
-        cameraId,
+        { deviceId: { exact: cameraId } },
         {
           fps: 10,
           qrbox: 250,
         },
         onScanSuccess,
+        (errorMessage) => {
+          // Non-fatal per-frame decode failures are common; log for debugging
+          console.debug("QR decode error:", errorMessage);
+        },
       );
     } catch (err) {
       console.error("Camera Error:", err);

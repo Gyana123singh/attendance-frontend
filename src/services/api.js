@@ -22,16 +22,35 @@ api.interceptors.request.use((config) => {
 
 export const qrLogin = async (qrCodeId, location) => {
   try {
-    const response = await api.post("/auth/qr-login", {
-      qrCodeId,
+    // Ensure a persistent deviceId for device-binding on the backend
+    let deviceId = localStorage.getItem("deviceId");
+    if (!deviceId && typeof crypto !== "undefined" && crypto.randomUUID) {
+      deviceId = crypto.randomUUID();
+      localStorage.setItem("deviceId", deviceId);
+    } else if (!deviceId) {
+      deviceId = `dev-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+      localStorage.setItem("deviceId", deviceId);
+    }
+
+    // Detect if the scanned payload is a JWT (three parts)
+    const payloadIsJwt = typeof qrCodeId === "string" && qrCodeId.split(".").length === 3;
+
+    const body = {
       lat: location?.lat,
       lng: location?.lng,
-    });
+      deviceId,
+    };
+
+    if (payloadIsJwt) body.token = qrCodeId;
+    else body.qrCodeId = qrCodeId;
+
+    const response = await api.post("/auth/qr-login", body);
 
     return response.data; // { token, user }
   } catch (error) {
-    console.error("QR Login Error:", error);
-    throw error.response?.data || { message: "Login failed" };
+    console.error("QR Login Error:", error?.response || error);
+    const err = error?.response?.data || { message: error.message || "Login failed" };
+    throw err;
   }
 };
 
