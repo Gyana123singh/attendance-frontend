@@ -1,7 +1,10 @@
 import axios from "axios";
 
-// 🔥 Your backend
-const API_BASE_URL = "http://localhost:4000/api";
+// ✅ AUTO DETECT ENVIRONMENT
+const API_BASE_URL =
+  window.location.hostname === "localhost"
+    ? "http://localhost:4000/api"
+    : "https://attendance-7o64.onrender.com/api";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
