@@ -1,7 +1,16 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import WorkModal from "../components/WorkModal";
 import { checkIn, checkOut, getTodayStatus, getCurrentLocation } from "../services/api";
 export default function Dashboard() {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+    }
+  }, [navigate]);
   const [mode, setMode] = useState("office"); // office | outside
   const [checkedIn, setCheckedIn] = useState(false);
   const [time, setTime] = useState(null);

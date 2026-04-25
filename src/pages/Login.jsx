@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { login } from "../services/api";
 import QRLoginButton from "../components/QRLoginButton";
 import QRScannerModal from "../components/QRScannerModal";
@@ -8,6 +9,7 @@ export default function Login({ onSuccess }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -27,8 +29,8 @@ export default function Login({ onSuccess }) {
       if (onSuccess) {
         onSuccess(data.user);
       } else {
-        // fallback redirect if parent not passing prop
-        window.location.href = "/dashboard";
+        // fallback redirect using react-router
+        navigate("/dashboard");
       }
     } catch (err) {
       console.log("LOGIN ERROR:", err);
