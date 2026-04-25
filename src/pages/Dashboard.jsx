@@ -1,7 +1,9 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import WorkModal from "../components/WorkModal";
-import { checkIn, checkOut, getTodayStatus, getCurrentLocation } from "../services/api";
+import History from "../components/History";
+import Leave from "../components/Leave";
+import { checkIn, checkOut, getTodayStatus, getCurrentLocation, getAttendanceHistory } from "../services/api";
 export default function Dashboard() {
   const navigate = useNavigate();
 
@@ -11,6 +13,7 @@ export default function Dashboard() {
       navigate("/login");
     }
   }, [navigate]);
+  const [activeTab, setActiveTab] = useState("check-in");
   const [mode, setMode] = useState("office"); // office | outside
   const [checkedIn, setCheckedIn] = useState(false);
   const [time, setTime] = useState(null);
@@ -126,6 +129,28 @@ export default function Dashboard() {
     };
   }, []);
 
+  const [stats, setStats] = useState({ daysWorked: 0, totalHours: 0, outsideDays: 0 });
+
+  useEffect(() => {
+    // Also load dashboard stats
+    async function loadStats() {
+      try {
+        const d = new Date();
+        const data = await getAttendanceHistory(d.getMonth() + 1, d.getFullYear());
+        if (data && data.summary) {
+          setStats({
+            daysWorked: data.summary.daysWorked,
+            totalHours: data.summary.totalHours,
+            outsideDays: data.summary.outsideDays || 0
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load stats", err);
+      }
+    }
+    loadStats();
+  }, [activeTab]); // reload when switching back
+
   // compute human-readable duration and countdown
   useEffect(() => {
     const update = () => {
@@ -189,35 +214,50 @@ export default function Dashboard() {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-semibold">AttendX</h1>
         <div className="flex items-center gap-2">
-          <span className="text-sm">Gyana</span>
-          <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm">
-            GS
+          <span className="text-sm">{JSON.parse(localStorage.getItem("user"))?.name || "User"}</span>
+          <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-sm font-semibold uppercase">
+            {JSON.parse(localStorage.getItem("user"))?.name?.slice(0, 2) || "ME"}
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-6 border-b mb-4">
-        <button className="border-b-2 border-blue-500 pb-1 text-blue-500">
+      <div className="flex gap-6 border-b mb-6">
+        <button 
+          onClick={() => setActiveTab("check-in")}
+          className={`pb-3 text-sm font-medium transition-colors ${activeTab === "check-in" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+        >
           Check-in
         </button>
-        <button className="text-gray-500">History</button>
-        <button className="text-gray-500">Leave</button>
+        <button 
+          onClick={() => setActiveTab("history")}
+          className={`pb-3 text-sm font-medium transition-colors ${activeTab === "history" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+        >
+          History
+        </button>
+        <button 
+          onClick={() => setActiveTab("leave")}
+          className={`pb-3 text-sm font-medium transition-colors ${activeTab === "leave" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-500 hover:text-gray-700"}`}
+        >
+          Leave
+        </button>
       </div>
 
+      {activeTab === "check-in" && (
+        <div className="animate-in fade-in duration-300">
       {/* Stats */}
       <div className="grid grid-cols-3 text-center mb-4">
         <div>
-          <h2 className="text-xl font-bold">18</h2>
+          <h2 className="text-xl font-bold">{stats.daysWorked}</h2>
           <p className="text-xs text-gray-500">Days this month</p>
         </div>
         <div>
-          <h2 className="text-xl font-bold">143h</h2>
+          <h2 className="text-xl font-bold">{stats.totalHours}</h2>
           <p className="text-xs text-gray-500">Hours worked</p>
         </div>
         <div>
-          <h2 className="text-xl font-bold">2</h2>
-          <p className="text-xs text-gray-500">WFH days</p>
+          <h2 className="text-xl font-bold">{stats.outsideDays}</h2>
+          <p className="text-xs text-gray-500">Outside days</p>
         </div>
       </div>
 
@@ -315,6 +355,12 @@ export default function Dashboard() {
           </button>
         </div>
       )}
+        </div>
+      )}
+
+      {activeTab === "history" && <History />}
+      {activeTab === "leave" && <Leave />}
+
       <WorkModal
         open={showModal}
         onClose={() => setShowModal(false)}

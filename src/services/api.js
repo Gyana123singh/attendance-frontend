@@ -134,12 +134,68 @@ export const checkOut = async ({ description, lat, lng }) => {
 };
 
 // ✅ Attendance history
-export const getAttendanceHistory = async () => {
+export const getAttendanceHistory = async (month, year) => {
   try {
-    const res = await api.get("/attendance/history");
+    const res = await api.get(`/attendance/history?month=${month}&year=${year}`);
     return res.data;
   } catch (error) {
     throw error?.response?.data || { message: "History fetch failed" };
+  }
+};
+
+// ✅ Update attendance description
+export const updateAttendanceDescription = async (id, description) => {
+  try {
+    const res = await api.put(`/attendance/${id}/description`, { description });
+    return res.data;
+  } catch (error) {
+    throw error?.response?.data || { message: "Failed to update description" };
+  }
+};
+
+// ✅ Export attendance excel
+export const exportAttendanceExcel = async (month, year) => {
+  try {
+    const res = await api.get(`/attendance/export-excel?month=${month}&year=${year}`, {
+      responseType: 'blob',
+    });
+    return res.data;
+  } catch (error) {
+    throw error?.response?.data || { message: "Export failed" };
+  }
+};
+
+// =====================================================
+// 🏖️ LEAVE APIs
+// =====================================================
+
+// ✅ Create leave request
+export const createLeave = async (leaveData) => {
+  try {
+    const res = await api.post("/leaves/create/leave", leaveData);
+    return res.data;
+  } catch (error) {
+    throw error?.response?.data || { message: "Leave request failed" };
+  }
+};
+
+// ✅ Get logged-in user's leaves
+export const getMyLeaves = async () => {
+  try {
+    const res = await api.get("/leaves/my-leaves");
+    return res.data;
+  } catch (error) {
+    throw error?.response?.data || { message: "Fetch leaves failed" };
+  }
+};
+
+// ✅ Get leave balance
+export const getLeaveBalance = async () => {
+  try {
+    const res = await api.get("/leaves/balance");
+    return res.data;
+  } catch (error) {
+    throw error?.response?.data || { message: "Fetch leave balance failed" };
   }
 };
 
