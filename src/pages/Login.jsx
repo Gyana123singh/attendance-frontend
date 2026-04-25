@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { login } from "../services/api";
+import QRLoginButton from "../components/QRLoginButton";
+import QRScannerModal from "../components/QRScannerModal";
 
 export default function Login({ onSuccess }) {
   const [email, setEmail] = useState("");
@@ -38,6 +40,8 @@ export default function Login({ onSuccess }) {
     }
   };
 
+  const [scannerOpen, setScannerOpen] = useState(false);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <form
@@ -73,7 +77,12 @@ export default function Login({ onSuccess }) {
         >
           {loading ? "Logging in..." : "Login"}
         </button>
+        <div className="mt-4">
+          <QRLoginButton onOpenScanner={() => setScannerOpen(true)} />
+        </div>
       </form>
+
+      <QRScannerModal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} />
     </div>
   );
 }

@@ -134,11 +134,15 @@ const QRScannerModal = ({ isOpen, onClose }) => {
         };
       } catch {}
 
-      const { token } = await qrLogin(qrCodeId, location);
+      const res = await qrLogin(qrCodeId, location);
+
+      const token = res?.token || res?.data?.token;
+      const user = res?.user || res?.data?.user;
 
       if (!token) throw new Error("Invalid response");
 
       localStorage.setItem("token", token);
+      if (user) localStorage.setItem("user", JSON.stringify(user));
 
       await stopScanner();
       navigate("/dashboard");
